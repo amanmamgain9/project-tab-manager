@@ -140,40 +140,41 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
   updateProjectTabs('tabs.onUpdated');
 });
 
+// Updated method to handle project tabs update
 function updateProjectTabs(source) {
-  // logEvent(`Updating project tabs called from ${source}`);
+  logEvent(`Updating project tabs called from ${source}`);
   chrome.storage.local.get(null, (result) => {
     handleWindowTabs(result);
   });
 }
 
-async function handleWindowTabs() {
+async function handleWindowTabs(storageData) {
   const currentWindow = await chrome.windows.getCurrent();
   const currentWindowId = currentWindow.id;
   const selectedProjectKey = `selectedProject_${currentWindowId}`;
 
-  chrome.storage.local.get([selectedProjectKey], async (result) => {
-    const projectName = result[selectedProjectKey];
+  const projectName = storageData[selectedProjectKey];
 
-    if (projectName) {
-      const tabs = await fetchTabs({ windowId: currentWindowId });
-      logEvent(`Found ${tabs.length} tabs in window ${currentWindowId}`);
-      const newTabUrls = tabs
-        .map(tab => tab.url)
-        .filter(url => url && url.trim() !== ""); // Filter out blank or empty URLs
+  if (projectName) {
+    const tabs = await fetchTabs({ windowId: currentWindowId });
+    logEvent(`Found ${tabs.length} tabs in window ${currentWindowId}`);
+    const newTabUrls = tabs
+      .map(tab => tab.url)
+      .filter(url => url && url.trim() !== ""); // Filter out blank or empty URLs
 
-      const oldTabUrls = previousTabLists[projectName] || [];
+    const oldTabUrls = previousTabLists[projectName] || [];
 
-      // Check if the number of tabs has decreased
-      if (newTabUrls.length < oldTabUrls.length) {
-        updateProjectTabsWithDelay(currentWindowId, projectName, newTabUrls);
-      } else {
+    // Check if the number of tabs has decreased
+    if (newTabUrls.length < oldTabUrls.length) {
+      setTimeout(() => {
         updateProjectTabsImmediately(currentWindowId, projectName, newTabUrls);
-      }
-
-      previousTabLists[projectName] = newTabUrls; // Update the previous tab list
+      }, 2000); // 2-second delay
+    } else {
+      updateProjectTabsImmediately(currentWindowId, projectName, newTabUrls);
     }
-  });
+
+    previousTabLists[projectName] = newTabUrls; // Update the previous tab list
+  }
 }
 
 function updateProjectTabsImmediately(windowId, projectName, newTabUrls) {
@@ -186,49 +187,6 @@ function updateProjectTabsImmediately(windowId, projectName, newTabUrls) {
   });
 }
 
-function updateProjectTabsWithDelay(windowId, projectName, newTabUrls) {
-  const oldTabUrls = previousTabLists[projectName] || [];
-  const missingTabs = oldTabUrls.filter(url => !newTabUrls.includes(url));
-  const delayData = { windowId, projectName, missingTabs };
-
-  // Store delay data in local storage to use later
-  chrome.storage.local.set({ [`delayData_${projectName}`]: delayData });
-
-  setTimeout(() => {
-    chrome.storage.local.get(null, (result) => {
-      handleDelayedWindowTabs(result, windowId, projectName, newTabUrls);
-    });
-  }, 2000); // 2sec delay
-}
-
-function handleDelayedWindowTabs(result, windowId, projectName, newTabUrls) {
-  const delayData = result[`delayData_${projectName}`];
-  if (!delayData) {
-    logEvent(`No delay data found for project ${projectName}`);
-    return;
-  }
-
-  const { missingTabs } = delayData;
-
-  fetchTabs({ windowId }).then((tabs) => {
-    const currentTabUrls = tabs.map(tab => tab.url).filter(url => url && url.trim() !== "");
-
-    // Check if the missing tabs still do not exist
-    const stillMissingTabs = missingTabs.filter(url => !currentTabUrls.includes(url));
-
-    if (stillMissingTabs.length === 0) {
-      // logEvent(`All missing tabs for project ${projectName} have been restored`);
-      return;
-    }
-
-    // Update project tabs without the still missing tabs
-    const updatedTabUrls = newTabUrls.filter(url => !stillMissingTabs.includes(url));
-    updateProjectTabsImmediately(windowId, projectName, updatedTabUrls);
-
-    // Clean up delay data
-    chrome.storage.local.remove(`delayData_${projectName}`);
-  });
-}
 
 function clearAllSelectedProjectsExceptOpenWindows() {
   // logEvent('Clearing all selected projects except open windows');
