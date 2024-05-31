@@ -4,7 +4,8 @@
   "description": "Manage your projects directly from Chrome.",
   "version": "1.0",
   "background": {
-    "service_worker": "background.js"
+    "service_worker": "background.js",
+    "type": "module"
   },
   "permissions": [
     "storage", "tabs", "activeTab", 
