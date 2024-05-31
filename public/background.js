@@ -1,7 +1,10 @@
 // Import functions from other modules
 import { logEvent, processLogQueue } from './log.js';
 import { fetchTabs, handleWindowTabs, clearAllSelectedProjectsExceptOpenWindows, updateProjectTabs } from './tab.js';
-import { setupContextMenu, handleContextMenuClick } from './carryover.js';
+import { setupContextMenu, handleContextMenuClick,
+         removeCarryOverTab, updateCarryOverTab,
+         updateContextMenu
+} from './carryover.js';
 
 // Initialize event listeners
 chrome.runtime.onInstalled.addListener(() => {
@@ -12,13 +15,13 @@ chrome.runtime.onInstalled.addListener(() => {
 
 chrome.runtime.onStartup.addListener(() => {
   logEvent('Browser started up');
-  clearAllSelectedProjectsExceptOpenWindows();
 });
 
 chrome.windows.onCreated.addListener(async (window) => {
-  let windowId = window.id;
-  const tabs = await fetchTabs({ windowId });
-  if (tabs.length === 1) {
+    let windowId = window.id;
+    clearAllSelectedProjectsExceptOpenWindows();
+    const tabs = await fetchTabs({ windowId });
+    if (tabs.length === 1) {
     let newTabId = tabs[0].id;
     chrome.storage.local.get('projectToOpen', (result) => {
       if (result.projectToOpen) {

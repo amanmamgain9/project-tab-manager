@@ -157,14 +157,28 @@ const App = () => {
   
     if (openNewWindow) {
       chrome.storage.local.set({ projectToOpen: newProject }, () => {
-        chrome.windows.create({}, (newWindow) => {
-          setTimeout(() => {
-            chrome.tabs.query({ currentWindow: true }, (tabs) => {
-              const tabIdsToRemove = tabs.map(tab => tab.id);
-              chrome.tabs.remove(tabIdsToRemove, () => {});
+          // Get the current window
+chrome.windows.getCurrent(function(currentWindow) {
+    // Get the dimensions of the current window
+    let width = currentWindow.width;
+    let height = currentWindow.height;
+    let isMaximized = currentWindow.state === 'maximized';
+    
+    // Create a new window with the same dimensions
+    chrome.windows.create({
+        width: isMaximized ? undefined : currentWindow.width,
+        height: isMaximized ? undefined : currentWindow.height,
+        state: isMaximized ? 'maximized' : 'normal'
+    }, (newWindow) => {
+        setTimeout(() => {
+            // Query all tabs in the old window
+            chrome.tabs.query({ windowId: currentWindow.id }, (tabs) => {
+                const tabIdsToRemove = tabs.map(tab => tab.id);
+                chrome.tabs.remove(tabIdsToRemove, () => {});
             });
-          }, 1000);
-        });
+        }, 1000);
+    });
+});
       });
     } else {
       openTabs(projectTabs[newProject], false);
