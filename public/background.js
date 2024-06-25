@@ -1,16 +1,16 @@
 // Import functions from other modules
 import { logEvent, processLogQueue } from './log.js';
 import { fetchTabs, handleWindowTabs, clearAllSelectedProjectsExceptOpenWindows, updateProjectTabs } from './tab.js';
-import { setupContextMenu, handleContextMenuClick,
-         removeCarryOverTab, updateCarryOverTab,
-         updateContextMenu
-} from './carryover.js';
+// import { setupContextMenu, handleContextMenuClick,
+//          removeCarryOverTab, updateCarryOverTab,
+//          updateContextMenu
+// } from './carryover.js';
 
 // Initialize event listeners
 chrome.runtime.onInstalled.addListener(() => {
   logEvent('Extension installed or updated');
   chrome.storage.local.set({ initialized: true });
-  setupContextMenu();
+  // setupContextMenu();
 });
 
 chrome.runtime.onStartup.addListener(() => {
@@ -75,7 +75,7 @@ chrome.tabs.onCreated.addListener((tab) => {
 });
 
 chrome.tabs.onRemoved.addListener((tabId, removeInfo) => {
-  removeCarryOverTab(tabId);
+  // removeCarryOverTab(tabId);
   updateProjectTabs('tabs.onRemoved');
 });
 
@@ -88,17 +88,17 @@ chrome.tabs.onAttached.addListener((tabId, attachInfo) => {
 });
 
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
-  updateCarryOverTab(tabId, changeInfo);
+  // updateCarryOverTab(tabId, changeInfo);
   updateProjectTabs('tabs.onUpdated');
 });
 
 
-chrome.contextMenus.onClicked.addListener(handleContextMenuClick);
+// chrome.contextMenus.onClicked.addListener(handleContextMenuClick);
 
 // Update context menu when a tab is activated
 chrome.tabs.onActivated.addListener((activeInfo) => {
   chrome.tabs.get(activeInfo.tabId, (tab) => {
-    updateContextMenu(tab);
+    // updateContextMenu(tab);
   });
 });
 
@@ -106,6 +106,6 @@ chrome.tabs.onActivated.addListener((activeInfo) => {
 chrome.tabs.onHighlighted.addListener((highlightInfo) => {
   const tabId = highlightInfo.tabIds[0]; // Assuming single selection
   chrome.tabs.get(tabId, (tab) => {
-    updateContextMenu(tab);
+    // updateContextMenu(tab);
   });
 });

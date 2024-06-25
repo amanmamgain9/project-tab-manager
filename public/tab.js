@@ -37,21 +37,15 @@ export async function handleWindowTabs(storageData) {
   if (projectName) {
     const tabs = await fetchTabs({ windowId: currentWindowId });
     logEvent(`Found ${tabs.length} tabs in window ${currentWindowId}`);
-    const carryOverTabs = storageData.carryOverTabs || {};
+    // const carryOverTabs = storageData.carryOverTabs || {};
     const newTabUrls = tabs
       .map(tab => tab.url)
-      .filter(url => url && url.trim() !== "" && !Object.values(carryOverTabs).includes(url)); // Exclude carryover tab URLs
+      .filter(url => url && url.trim() !== "")
+       //&& !Object.values(carryOverTabs).includes(url)); // Exclude carryover tab URLs
 
     const oldTabUrls = previousTabLists[projectName] || [];
-
-    // Check if the number of tabs has decreased
-    if (newTabUrls.length < oldTabUrls.length) {
-      setTimeout(() => {
-        updateProjectTabsImmediately(currentWindowId, projectName, newTabUrls);
-      }, 2000); // 2-second delay
-    } else {
-      updateProjectTabsImmediately(currentWindowId, projectName, newTabUrls);
-    }
+    updateProjectTabsImmediately(currentWindowId, projectName, newTabUrls);
+    
 
     previousTabLists[projectName] = newTabUrls; // Update the previous tab list
   }

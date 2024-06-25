@@ -5,7 +5,7 @@ import 'bootstrap/dist/css/bootstrap.min.css';
 import ProjectList from './ProjectList';
 import AddProjectModal from './AddProjectModal';
 import ConfirmationModal from './ConfirmationModal';
-import { getFromStorage, setToStorage } from './utils/storage';
+import { getFromStorage, removeFromStorage, setToStorage } from './utils/storage';
 
 const Container = styled.div`
   padding: 20px;
@@ -59,15 +59,15 @@ const App = () => {
       const windowId = (await chrome.windows.getCurrent()).id;
       console.log('windowId', windowId);
       const selectedProjectKey = `selectedProject_${windowId}`;
-  
+
       // Fetch the necessary data from storage, including the dynamic selectedProject key
       getFromStorage(['projects', 'projectTabs', selectedProjectKey, 'eventLogs'], (result) => {
         console.log('result', result);
-  
+
         // Set the state based on the fetched data
         if (result.projects) setProjects(result.projects);
         if (result.projectTabs) setProjectTabs(result.projectTabs);
-  
+
         // Use the window-specific selectedProject key to set the selected project
         if (result[selectedProjectKey]) setSelectedProject(result[selectedProjectKey]);
       });
@@ -112,7 +112,7 @@ const App = () => {
       });
     });
   };
-  
+
 
   const deleteAssociation = (projectName) => {
     const updatedProjectTabs = { ...projectTabs };
@@ -134,7 +134,7 @@ const App = () => {
         setSelectedProject(projectName);
         setToStorage({ projects: newProjects, [selectedProjectKey]: projectName });
       } else {
-        setToStorage({ projects: newProjects,});
+        setToStorage({ projects: newProjects, });
         setProjects(newProjects);
         pendingProjectSelection.current = projectName;
         setConfirmationAction('selectProject');
@@ -151,46 +151,47 @@ const App = () => {
     }
   };
 
-  const confirmSwitchToProject = (openNewWindow) => {
-    console.log('confirmSwitchToProject please'+ String(openNewWindow));
+  const confirmSwitchToProject = async (openNewWindow) => {
+    console.log('confirmSwitchToProject please' + String(openNewWindow));
     const newProject = pendingProjectSelection.current;
-  
     if (openNewWindow) {
       chrome.storage.local.set({ projectToOpen: newProject }, () => {
-          // Get the current window
-chrome.windows.getCurrent(function(currentWindow) {
-    // Get the dimensions of the current window
-    let width = currentWindow.width;
-    let height = currentWindow.height;
-    let isMaximized = currentWindow.state === 'maximized';
-    
-    // Create a new window with the same dimensions
-    chrome.windows.create({
-        width: isMaximized ? undefined : currentWindow.width,
-        height: isMaximized ? undefined : currentWindow.height,
-        state: isMaximized ? 'maximized' : 'normal'
-    }, (newWindow) => {
-        setTimeout(() => {
-            // Query all tabs in the old window
-            chrome.tabs.query({ windowId: currentWindow.id }, (tabs) => {
+        // Get the current window
+        chrome.windows.getCurrent(function (currentWindow) {
+          removeFromStorage(
+            ['selectedProject', 'selectedProject_' + currentWindow.id]);
+          // Get the dimensions of the current window
+          let width = currentWindow.width;
+          let height = currentWindow.height;
+          let isMaximized = currentWindow.state === 'maximized';
+          
+          // Create a new window with the same dimensions
+          chrome.windows.create({
+            width: isMaximized ? undefined : currentWindow.width,
+            height: isMaximized ? undefined : currentWindow.height,
+            state: isMaximized ? 'maximized' : 'normal'
+          }, (newWindow) => {
+            setTimeout(() => {
+              // Query all tabs in the old window
+              chrome.tabs.query({ windowId: currentWindow.id }, (tabs) => {
                 const tabIdsToRemove = tabs.map(tab => tab.id);
-                chrome.tabs.remove(tabIdsToRemove, () => {});
-            });
-        }, 1000);
-    });
-});
+                chrome.tabs.remove(tabIdsToRemove, () => { });
+              });
+            }, 1000);
+          });
+        });
       });
     } else {
       openTabs(projectTabs[newProject], false);
       setSelectedProject(newProject);
       setToStorage({ selectedProject: newProject });
     }
-  
+
     setShowConfirmation(false);
     pendingProjectSelection.current = null;
   };
-  
-  
+
+
 
   const deleteProject = (index) => {
     const projectName = projects[index];
