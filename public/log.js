@@ -5,13 +5,14 @@ export function processLogQueue() {
   if (logQueue.length > 0 && !isProcessingLogQueue) {
     isProcessingLogQueue = true;
     const logMessage = logQueue.shift();
+    processLogQueue(); // Process the next log message in the queue
     chrome.storage.local.get('eventLogs', (result) => {
       const logs = result.eventLogs || [];
       logs.push(logMessage);
-      chrome.storage.local.set({ eventLogs: logs }, () => {
-        isProcessingLogQueue = false;
-        processLogQueue(); // Process the next log message in the queue
-      });
+      // chrome.storage.local.set({ eventLogs: logs }, () => {
+      //   isProcessingLogQueue = false;
+      //   processLogQueue(); // Process the next log message in the queue
+      // });
     });
   }
 }
