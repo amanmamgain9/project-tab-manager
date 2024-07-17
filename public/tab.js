@@ -8,26 +8,6 @@ export function fetchTabs(queryInfo) {
   });
 }
 
-export function clearAllSelectedProjectsExceptOpenWindows() {
-  chrome.windows.getAll({}, (windows) => {
-    const openWindowIds = windows.map(window => window.id);
-    chrome.storage.local.get(null, (result) => {
-      const keysToRemove = [];
-      for (const key in result) {
-        if (key.startsWith('selectedProject_')) {
-          const windowId = parseInt(key.split('_')[1]);
-          if (!openWindowIds.includes(windowId)) {
-            keysToRemove.push(key);
-          }
-        }
-      }
-      if (keysToRemove.length > 0) {
-        chrome.storage.local.remove(keysToRemove, () => {});
-      }
-    });
-  });
-}
-
 export async function handleWindowTabs(storageData) {
   const currentWindow = await chrome.windows.getCurrent();
   const currentWindowId = currentWindow.id;
@@ -40,13 +20,11 @@ export async function handleWindowTabs(storageData) {
     // const carryOverTabs = storageData.carryOverTabs || {};
     const newTabUrls = tabs
       .map(tab => tab.url)
-      .filter(url => url && url.trim() !== "")
-       //&& !Object.values(carryOverTabs).includes(url)); // Exclude carryover tab URLs
-
+      .filter(url => url && url.trim() !== ""
+       && !Object.values(carryOverTabs).includes(url)); // Exclude carryover tab URLs
+    
     const oldTabUrls = previousTabLists[projectName] || [];
     updateProjectTabsImmediately(currentWindowId, projectName, newTabUrls);
-    
-
     previousTabLists[projectName] = newTabUrls; // Update the previous tab list
   }
 }

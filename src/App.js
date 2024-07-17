@@ -56,9 +56,7 @@ const App = () => {
   const initializeState = () => {
     // Fetch the current window ID
     chrome.windows.getCurrent({}, async (currentWindow) => {
-      const windowId = (await chrome.windows.getCurrent()).id;
-      console.log('windowId', windowId);
-      const selectedProjectKey = `selectedProject_${windowId}`;
+      const selectedProjectKey = `selectedProject`;
 
       // Fetch the necessary data from storage, including the dynamic selectedProject key
       getFromStorage(['projects', 'projectTabs', selectedProjectKey, 'eventLogs'], (result) => {
@@ -119,13 +117,13 @@ const App = () => {
     delete updatedProjectTabs[projectName];
     setProjectTabs(updatedProjectTabs);
     setToStorage({ projectTabs: updatedProjectTabs });
+    // Remove the selected project if it is the one being deleted
   };
 
   const addProject = async (projectName) => {
     if (projectName && !projects.includes(projectName)) {
       const newProjects = [...projects, projectName];
       const currentWindow = await getCurrentWindow();
-      const windowId = currentWindow.id;
       const selectedProjectKey = `selectedProject_${windowId}`;
       if (projects.length === 0 || selectedProject === null) {
         console.log('addProject', projectName);
@@ -174,6 +172,7 @@ const App = () => {
             setTimeout(() => {
               // Query all tabs in the old window
               chrome.tabs.query({ windowId: currentWindow.id }, (tabs) => {
+                let carryOverTabs = localStorage.getItem('carryOverTabs');
                 const tabIdsToRemove = tabs.map(tab => tab.id);
                 chrome.tabs.remove(tabIdsToRemove, () => { });
               });

@@ -1,16 +1,17 @@
 // Import functions from other modules
 import { logEvent, processLogQueue } from './log.js';
-import { fetchTabs, handleWindowTabs, clearAllSelectedProjectsExceptOpenWindows, updateProjectTabs } from './tab.js';
-// import { setupContextMenu, handleContextMenuClick,
-//          removeCarryOverTab, updateCarryOverTab,
-//          updateContextMenu
-// } from './carryover.js';
+import { fetchTabs, handleWindowTabs, updateProjectTabs } from './tab.js';
+import { setupContextMenu, handleContextMenuClick,
+         removeCarryOverTab, updateCarryOverTab,
+         updateContextMenu
+} from './carryover.js';
+import { removeFromLocalStorage } from './chromeUtils.js';
 
 // Initialize event listeners
 chrome.runtime.onInstalled.addListener(() => {
   logEvent('Extension installed or updated');
   chrome.storage.local.set({ initialized: true });
-  // setupContextMenu();
+  setupContextMenu();
 });
 
 chrome.runtime.onStartup.addListener(() => {
@@ -19,7 +20,8 @@ chrome.runtime.onStartup.addListener(() => {
 
 chrome.windows.onCreated.addListener(async (window) => {
     let windowId = window.id;
-    clearAllSelectedProjectsExceptOpenWindows();
+    // lets remove selected project from storage
+    removeFromLocalStorage(['selectedProject']);
     const tabs = await fetchTabs({ windowId });
     if (tabs.length === 1) {
     let newTabId = tabs[0].id;
@@ -93,12 +95,12 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
 });
 
 
-// chrome.contextMenus.onClicked.addListener(handleContextMenuClick);
+chrome.contextMenus.onClicked.addListener(handleContextMenuClick);
 
 // Update context menu when a tab is activated
 chrome.tabs.onActivated.addListener((activeInfo) => {
   chrome.tabs.get(activeInfo.tabId, (tab) => {
-    // updateContextMenu(tab);
+    updateContextMenu(tab);
   });
 });
 
@@ -106,6 +108,6 @@ chrome.tabs.onActivated.addListener((activeInfo) => {
 chrome.tabs.onHighlighted.addListener((highlightInfo) => {
   const tabId = highlightInfo.tabIds[0]; // Assuming single selection
   chrome.tabs.get(tabId, (tab) => {
-    // updateContextMenu(tab);
+    updateContextMenu(tab);
   });
 });

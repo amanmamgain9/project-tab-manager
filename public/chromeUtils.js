@@ -6,7 +6,7 @@ export const fetchTabs = async (queryInfo) => {
   });
 };
 
-export const getLocalStorage = async (key) => {
+export const getFromLocalStorage = async (key) => {
   return new Promise((resolve) => {
     chrome.storage.local.get(key, (result) => {
       resolve(result[key]);
@@ -14,7 +14,7 @@ export const getLocalStorage = async (key) => {
   });
 };
 
-export const setLocalStorage = async (items) => {
+export const setToLocalStorage = async (items) => {
   return new Promise((resolve) => {
     chrome.storage.local.set(items, () => {
       resolve();
@@ -22,7 +22,7 @@ export const setLocalStorage = async (items) => {
   });
 };
 
-export const removeLocalStorage = async (key) => {
+export const removeFromLocalStorage = async (key) => {
   return new Promise((resolve) => {
     chrome.storage.local.remove(key, () => {
       resolve();
@@ -46,7 +46,7 @@ export const removeTab = async (tabId) => {
   });
 };
 
-export const getLocalStorageAll = async () => {
+export const getFromLocalStorageAll = async () => {
   return new Promise((resolve) => {
     chrome.storage.local.get(null, (result) => {
       resolve(result);
