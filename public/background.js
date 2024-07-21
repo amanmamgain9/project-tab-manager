@@ -7,7 +7,7 @@ import {
   updateContextMenu
 } from './carryover.js';
 import { getFromLocalStorage,removeFromLocalStorage, fetchTabs, createTab, 
-  setToLocalStorage, removeTab
+  setToLocalStorage, removeTab,clearInactiveSelectedProjects
 } from './chromeUtils.js';
 
 
@@ -24,9 +24,9 @@ chrome.runtime.onStartup.addListener(() => {
 });
 
 chrome.windows.onCreated.addListener(async (window) => {
+  await clearInactiveSelectedProjects();
   const windowId = window.id;
-  await removeFromLocalStorage(['selectedProject']);
-
+  let selectedProjectKey = `selectedProject_${windowId}`;
   const tabs = await fetchTabs({ windowId });
   const newTabId = tabs[0].id;
   logEvent(`Window ${windowId} created with ${tabs.length} tabs`);
@@ -35,7 +35,7 @@ chrome.windows.onCreated.addListener(async (window) => {
   setToLocalStorage({ [`selectedProject`]: projectToOpen });
   if (projectToOpen) {
     const projectName = projectToOpen;
-    let { projectTabs } = await getFromLocalStorage('projectTabs');
+    let projectTabs  = await getFromLocalStorage('projectTabs');
 
     let tabUrls = [];
     if (projectTabs && projectTabs[projectName]) {
@@ -49,7 +49,7 @@ chrome.windows.onCreated.addListener(async (window) => {
     await Promise.all(tabUrls.map(url => createTab({ url, windowId })));
 
     // Set selected project and remove projectToOpen
-    await setToLocalStorage({ [`selectedProject`]: projectName });
+    await setToLocalStorage({ [`selectedProject_${window.id}`]: projectName });
     await removeFromLocalStorage('projectToOpen');
 
     // Check if we need to remove the initial new tab

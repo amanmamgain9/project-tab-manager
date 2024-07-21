@@ -11,10 +11,10 @@ export const fetchTabs = async (queryInfo) => {
 };
 
 export const getFromLocalStorage = async (key) => {
-  logEvent(`Getting ${key} from local storage`);
+  // logEvent(`Getting ${key} from local storage`);
   return new Promise((resolve) => {
     chrome.storage.local.get(key, (result) => {
-      logEvent(`result for ${key}: ${result[key]}`);
+      // logEvent(`result for ${key}: ${result[key]}`);
       resolve(result[key]);
     });
   });
@@ -99,3 +99,22 @@ export const removeFromLocalStorageMultiple = async (keys) => {
     });
   });
 };
+
+export async function clearInactiveSelectedProjects() {
+  const currentWindow = await getCurrentWindow();
+  const currentWindowId = currentWindow.id;
+  const result = await getFromLocalStorageAll();
+  const keysToRemove = [];
+
+  for (const key in result) {
+    if (key.startsWith('selectedProject_')) {
+      const windowId = parseInt(key.split('_')[1]);
+      if (windowId !== currentWindowId) {
+        keysToRemove.push(key);
+      }
+    }
+  }
+  if (keysToRemove.length > 0) {
+    await removeFromLocalStorageMultiple(keysToRemove);
+  }
+}

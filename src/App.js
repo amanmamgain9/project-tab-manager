@@ -9,7 +9,8 @@ import {
   getFromLocalStorageMultiple, 
   removeFromLocalStorageMultiple, 
   setToLocalStorage,
-  fetchTabs
+  fetchTabs,
+  getCurrentWindow
 } from './utils/chromeUtils';
 
 const Container = styled.div`
@@ -59,12 +60,19 @@ const App = () => {
   }, []);
 
   const initializeState = async () => {
-      const selectedProjectKey = 'selectedProject';
-      const result = await getFromLocalStorageMultiple(['projects', 'projectTabs', selectedProjectKey, 'eventLogs']);
-      console.log(result);
-      if (result.projects) setProjects(result.projects);
-      if (result.projectTabs) setProjectTabs(result.projectTabs);
-      if (result[selectedProjectKey]) setSelectedProject(result[selectedProjectKey]);
+    let window = await getCurrentWindow();
+    console.log('windowId', window.id);
+    const selectedProjectKey = `selectedProject_${window.id}`;
+    const result = await getFromLocalStorageMultiple(['projects', 'projectTabs', selectedProjectKey, 'eventLogs']);
+    console.log(result);
+    if (result.projects) setProjects(result.projects);
+    if (result.projectTabs) setProjectTabs(result.projectTabs);
+    if (result[selectedProjectKey]){
+      // remove window id
+      let selectProject = result[selectedProjectKey];
+      selectProject = selectProject.split('_')[0];
+      setSelectedProject(selectProject);
+    }
   };
 
   const saveTabs = async (projectName) => {
@@ -118,7 +126,6 @@ const App = () => {
     if (switchProjectBool) {
       chrome.storage.local.set({ projectToOpen: newProject }, () => {
         // Get the current window
-        alert('Switching to project: ' + newProject);
         chrome.windows.getCurrent(function (currentWindow) {
           removeFromLocalStorageMultiple(
             ['selectedProject', 'selectedProject_' + currentWindow.id]);
