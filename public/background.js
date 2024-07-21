@@ -1,11 +1,16 @@
-// Import functions from other modules
+// /* global chrome */
 import { logEvent, processLogQueue } from './log.js';
-import { fetchTabs, handleWindowTabs, updateProjectTabs } from './tab.js';
-import { setupContextMenu, handleContextMenuClick,
-         removeCarryOverTab, updateCarryOverTab,
-         updateContextMenu
+import { handleWindowTabs, updateProjectTabs } from './tab.js';
+import {
+  setupContextMenu, handleContextMenuClick,
+  removeCarryOverTab, updateCarryOverTab,
+  updateContextMenu
 } from './carryover.js';
-import { removeFromLocalStorage } from './chromeUtils.js';
+import { getFromLocalStorage,removeFromLocalStorage, fetchTabs, createTab, 
+  setToLocalStorage, removeTab
+} from './chromeUtils.js';
+
+
 
 // Initialize event listeners
 chrome.runtime.onInstalled.addListener(() => {
@@ -19,42 +24,45 @@ chrome.runtime.onStartup.addListener(() => {
 });
 
 chrome.windows.onCreated.addListener(async (window) => {
-    let windowId = window.id;
-    // lets remove selected project from storage
-    removeFromLocalStorage(['selectedProject']);
-    const tabs = await fetchTabs({ windowId });
-    if (tabs.length === 1) {
-    let newTabId = tabs[0].id;
-    chrome.storage.local.get('projectToOpen', (result) => {
-      if (result.projectToOpen) {
-        const projectName = result.projectToOpen;
-        chrome.storage.local.get('projectTabs', (tabsResult) => {
-          let tabUrls = [];
-          if (tabsResult.projectTabs && tabsResult.projectTabs[projectName]) {
-            tabUrls = tabsResult.projectTabs[projectName];
-          } else {
-            chrome.storage.local.set({ projectTabs: { ...tabsResult.projectTabs, [projectName]: [] } });
-          }
-          tabUrls.forEach(url => {
-            chrome.tabs.create({ url, windowId: windowId });
-          });
-          chrome.storage.local.set({ [`selectedProject_${windowId}`]: projectName }, () => {
-            chrome.storage.local.remove('projectToOpen', async () => {
-              const updatedTabs = await fetchTabs({ windowId });
-              if (updatedTabs.length != 1) {
-                chrome.tabs.remove(newTabId);
-              }
-            });
-          });
-        });
-      }
-    });
+  const windowId = window.id;
+  await removeFromLocalStorage(['selectedProject']);
+
+  const tabs = await fetchTabs({ windowId });
+  const newTabId = tabs[0].id;
+  logEvent(`Window ${windowId} created with ${tabs.length} tabs`);
+  const projectToOpen = await getFromLocalStorage('projectToOpen');
+  logEvent(`Project to open: ${projectToOpen}`);
+  setToLocalStorage({ [`selectedProject`]: projectToOpen });
+  if (projectToOpen) {
+    const projectName = projectToOpen;
+    let { projectTabs } = await getFromLocalStorage('projectTabs');
+
+    let tabUrls = [];
+    if (projectTabs && projectTabs[projectName]) {
+      tabUrls = projectTabs[projectName];
+    } else {
+      projectTabs = { ...projectTabs, [projectName]: [] };
+      await setToLocalStorage({ projectTabs });
+    }
+
+    // Create new tabs
+    await Promise.all(tabUrls.map(url => createTab({ url, windowId })));
+
+    // Set selected project and remove projectToOpen
+    await setToLocalStorage({ [`selectedProject`]: projectName });
+    await removeFromLocalStorage('projectToOpen');
+
+    // Check if we need to remove the initial new tab
+    const updatedTabs = await fetchTabs({ windowId });
+    if (updatedTabs.length !== 1) {
+      await removeTab(newTabId);
+    }
   }
 });
 
 chrome.windows.onRemoved.addListener((windowId) => {
   chrome.storage.local.remove([`selectedProject_${windowId}`], () => {
-    chrome.runtime.sendMessage({ action: 'clearSelectedProject' }, (response) => {});
+    chrome.runtime.sendMessage({ action: 'clearSelectedProject' }, (response) => { });
   });
 });
 

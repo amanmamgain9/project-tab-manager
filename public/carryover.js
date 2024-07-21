@@ -1,11 +1,12 @@
-import { getFromStorage, setToStorage, removeFromStorage } from './storage';
+/* global chrome */
+import { getFromLocalStorage, setToLocalStorage } from './chromeUtils.js';
 
 async function removeTabFromProjectTabs(url) {
     chrome.storage.local.get(['projectTabs'], (result) => {
       const projectTabs = result.projectTabs || {};
       for (const projectName in projectTabs) {
         projectTabs[projectName] = projectTabs[projectName].filter(tabUrl => tabUrl !== url);
-        await setToStorage({ carryOverTabs });
+        setToLocalStorage({ projectTabs });
        }
       chrome.storage.local.set({ projectTabs });
     });
@@ -14,9 +15,9 @@ async function removeTabFromProjectTabs(url) {
 // Function to add a tab to carryOverTabs
 export async function addCarryOverTab(tab) {
   try {
-    const carryOverTabs = await getFromStorage('carryOverTabs') || {};
+    const carryOverTabs = await getFromLocalStorage('carryOverTabs') || {};
     carryOverTabs[tab.id] = tab.url;
-    await setToStorage({ carryOverTabs });
+    await setToLocalStorage({ carryOverTabs });
     await removeTabFromProjectTabs(tab.url); // Remove from projectTabs if exists
   } catch (error) {
     console.error('Error adding carry over tab:', error);
@@ -28,10 +29,10 @@ export async function addCarryOverTab(tab) {
 export async function updateCarryOverTab(tabId, changeInfo) {
   if (changeInfo.url) {
     try {
-      const carryOverTabs = await getFromStorage('carryOverTabs') || {};
+      const carryOverTabs = await getFromLocalStorage('carryOverTabs') || {};
       if (carryOverTabs[tabId]) {
         carryOverTabs[tabId] = changeInfo.url;
-        await setToStorage({ carryOverTabs });
+        await setToLocalStorage({ carryOverTabs });
       }
     } catch (error) {
       console.error('Error updating carry over tab:', error);
@@ -43,10 +44,10 @@ export async function updateCarryOverTab(tabId, changeInfo) {
 // need to add to project tabs if exists
 export async function removeCarryOverTab(tabId) {
   try {
-    const carryOverTabs = await getFromStorage('carryOverTabs') || {};
+    const carryOverTabs = await getFromLocalStorage('carryOverTabs') || {};
     if (carryOverTabs[tabId]) {
       delete carryOverTabs[tabId];
-      await setToStorage({ carryOverTabs });
+      await setToLocalStorage({ carryOverTabs });
     }
   } catch (error) {
     console.error('Error removing carry over tab:', error);
@@ -56,7 +57,7 @@ export async function removeCarryOverTab(tabId) {
 // Handle context menu click for Carry Over Tab
 export async function updateContextMenu(tab) {
   try {
-    const carryOverTabs = await getFromStorage('carryOverTabs') || {};
+    const carryOverTabs = await getFromLocalStorage('carryOverTabs') || {};
     const isCarryOver = carryOverTabs[tab.id] !== undefined;
     
     await new Promise((resolve, reject) => {
@@ -77,7 +78,7 @@ export async function updateContextMenu(tab) {
 
 export async function handleContextMenuClick(info, tab) {
   try {
-    const carryOverTabs = await getFromStorage('carryOverTabs') || {};
+    const carryOverTabs = await getFromLocalStorage('carryOverTabs') || {};
     if (info.menuItemId === "carryOverTab") {
       if (carryOverTabs[tab.id]) {
         await removeCarryOverTab(tab.id);

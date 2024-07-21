@@ -5,7 +5,12 @@ import 'bootstrap/dist/css/bootstrap.min.css';
 import ProjectList from './ProjectList';
 import AddProjectModal from './AddProjectModal';
 import ConfirmationModal from './ConfirmationModal';
-import { getFromStorage, removeFromStorage, setToStorage } from './utils/storage';
+import { 
+  getFromLocalStorageMultiple, 
+  removeFromLocalStorageMultiple, 
+  setToLocalStorage,
+  fetchTabs
+} from './utils/chromeUtils';
 
 const Container = styled.div`
   padding: 20px;
@@ -53,90 +58,48 @@ const App = () => {
     initializeState();
   }, []);
 
-  const initializeState = () => {
-    // Fetch the current window ID
-    chrome.windows.getCurrent({}, async (currentWindow) => {
-      const selectedProjectKey = `selectedProject`;
-
-      // Fetch the necessary data from storage, including the dynamic selectedProject key
-      getFromStorage(['projects', 'projectTabs', selectedProjectKey, 'eventLogs'], (result) => {
-        console.log('result', result);
-
-        // Set the state based on the fetched data
-        if (result.projects) setProjects(result.projects);
-        if (result.projectTabs) setProjectTabs(result.projectTabs);
-
-        // Use the window-specific selectedProject key to set the selected project
-        if (result[selectedProjectKey]) setSelectedProject(result[selectedProjectKey]);
-      });
-    });
+  const initializeState = async () => {
+      const selectedProjectKey = 'selectedProject';
+      const result = await getFromLocalStorageMultiple(['projects', 'projectTabs', selectedProjectKey, 'eventLogs']);
+      console.log(result);
+      if (result.projects) setProjects(result.projects);
+      if (result.projectTabs) setProjectTabs(result.projectTabs);
+      if (result[selectedProjectKey]) setSelectedProject(result[selectedProjectKey]);
   };
 
-  const saveTabs = (projectName) => {
-    console.log('saveTabs', projectName);
-    chrome.tabs.query({}, (tabs) => {
-      console.log('tabs', tabs);
+  const saveTabs = async (projectName) => {
+      const tabs = await fetchTabs({});
       const tabUrls = tabs.map(tab => tab.url);
       const updatedProjectTabs = { ...projectTabs, [projectName]: tabUrls };
       setProjectTabs(updatedProjectTabs);
-      setToStorage({ projectTabs: updatedProjectTabs });
-    });
+      await setToLocalStorage({ projectTabs: updatedProjectTabs });
   };
-
-  const openTabs = (tabUrls, newWindow) => {
-    if (newWindow) {
-      chrome.windows.create({ url: tabUrls });
-    } else {
-      chrome.tabs.query({}, (tabs) => {
-        const tabIds = tabs.map(tab => tab.id);
-        chrome.tabs.remove(tabIds, () => {
-          tabUrls.forEach(url => {
-            chrome.tabs.create({ url });
-          });
-        });
-      });
-    }
-  };
-
-
-  const getCurrentWindow = () => {
-    return new Promise((resolve, reject) => {
-      chrome.windows.getCurrent((window) => {
-        if (chrome.runtime.lastError) {
-          reject(chrome.runtime.lastError);
-        } else {
-          resolve(window);
-        }
-      });
-    });
-  };
-
 
   const deleteAssociation = (projectName) => {
     const updatedProjectTabs = { ...projectTabs };
     delete updatedProjectTabs[projectName];
     setProjectTabs(updatedProjectTabs);
-    setToStorage({ projectTabs: updatedProjectTabs });
-    // Remove the selected project if it is the one being deleted
+    setToLocalStorage({ projectTabs: updatedProjectTabs });
   };
 
   const addProject = async (projectName) => {
     if (projectName && !projects.includes(projectName)) {
       const newProjects = [...projects, projectName];
-      const currentWindow = await getCurrentWindow();
-      const selectedProjectKey = `selectedProject_${windowId}`;
-      if (projects.length === 0 || selectedProject === null) {
-        console.log('addProject', projectName);
+      const selectedProjectKey = `selectedProject`;
+      if (selectedProject === null) {
         setProjects(newProjects);
         saveTabs(projectName);
         setSelectedProject(projectName);
-        setToStorage({ projects: newProjects, [selectedProjectKey]: projectName });
+        setToLocalStorage({ 
+          projects: newProjects, 
+          [selectedProjectKey]: projectName 
+        });
       } else {
-        setToStorage({ projects: newProjects, });
         setProjects(newProjects);
         pendingProjectSelection.current = projectName;
         setConfirmationAction('selectProject');
         setShowConfirmation(true);
+        setToLocalStorage({ projects: newProjects, });
       }
     }
   };
@@ -149,14 +112,15 @@ const App = () => {
     }
   };
 
-  const confirmSwitchToProject = async (openNewWindow) => {
-    console.log('confirmSwitchToProject please' + String(openNewWindow));
+  const confirmSwitchToProject = async (switchProjectBool) => {
     const newProject = pendingProjectSelection.current;
-    if (openNewWindow) {
+    
+    if (switchProjectBool) {
       chrome.storage.local.set({ projectToOpen: newProject }, () => {
         // Get the current window
+        alert('Switching to project: ' + newProject);
         chrome.windows.getCurrent(function (currentWindow) {
-          removeFromStorage(
+          removeFromLocalStorageMultiple(
             ['selectedProject', 'selectedProject_' + currentWindow.id]);
           // Get the dimensions of the current window
           let width = currentWindow.width;
@@ -180,17 +144,10 @@ const App = () => {
           });
         });
       });
-    } else {
-      openTabs(projectTabs[newProject], false);
-      setSelectedProject(newProject);
-      setToStorage({ selectedProject: newProject });
     }
-
     setShowConfirmation(false);
     pendingProjectSelection.current = null;
   };
-
-
 
   const deleteProject = (index) => {
     const projectName = projects[index];
@@ -200,7 +157,7 @@ const App = () => {
       setSelectedProject(null);
     }
     deleteAssociation(projectName);
-    setToStorage({ projects: newProjects });
+    setToLocalStorage({ projects: newProjects });
   };
 
   const handleAddProject = () => {

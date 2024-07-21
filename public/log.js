@@ -1,3 +1,4 @@
+/* global chrome */
 let logQueue = [];
 let isProcessingLogQueue = false;
 
@@ -9,10 +10,10 @@ export function processLogQueue() {
     chrome.storage.local.get('eventLogs', (result) => {
       const logs = result.eventLogs || [];
       logs.push(logMessage);
-      // chrome.storage.local.set({ eventLogs: logs }, () => {
-      //   isProcessingLogQueue = false;
-      //   processLogQueue(); // Process the next log message in the queue
-      // });
+      chrome.storage.local.set({ eventLogs: logs }, () => {
+        isProcessingLogQueue = false;
+        processLogQueue(); // Process the next log message in the queue
+      });
     });
   }
 }

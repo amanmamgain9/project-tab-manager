@@ -1,3 +1,4 @@
+/* global chrome */
 import { logEvent } from './log.js';
 
 export function fetchTabs(queryInfo) {
@@ -17,7 +18,7 @@ export async function handleWindowTabs(storageData) {
   if (projectName) {
     const tabs = await fetchTabs({ windowId: currentWindowId });
     logEvent(`Found ${tabs.length} tabs in window ${currentWindowId}`);
-    // const carryOverTabs = storageData.carryOverTabs || {};
+    const carryOverTabs = storageData.carryOverTabs || {};
     const newTabUrls = tabs
       .map(tab => tab.url)
       .filter(url => url && url.trim() !== ""
@@ -29,9 +30,8 @@ export async function handleWindowTabs(storageData) {
   }
 }
 
-
 export function updateProjectTabs(source) {
-  logEvent(`Updating project tabs called from ${source}`);
+  // logEvent(`Updating project tabs called from ${source}`);
   chrome.storage.local.get(null, (result) => {
     handleWindowTabs(result);
   });

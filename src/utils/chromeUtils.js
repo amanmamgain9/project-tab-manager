@@ -1,7 +1,4 @@
 /* global chrome */
-import { logEvent } from "./log.js";
-
-
 export const fetchTabs = async (queryInfo) => {
   return new Promise((resolve) => {
     chrome.tabs.query(queryInfo, (tabs) => {
@@ -11,10 +8,8 @@ export const fetchTabs = async (queryInfo) => {
 };
 
 export const getFromLocalStorage = async (key) => {
-  logEvent(`Getting ${key} from local storage`);
   return new Promise((resolve) => {
     chrome.storage.local.get(key, (result) => {
-      logEvent(`result for ${key}: ${result[key]}`);
       resolve(result[key]);
     });
   });
