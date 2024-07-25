@@ -94,3 +94,45 @@ export const removeFromLocalStorageMultiple = async (keys) => {
     });
   });
 };
+
+
+export async function addCarryOverTab(tab) {
+  try {
+    const carryOverTabs = await getFromLocalStorage('carryOverTabs') || {};
+    carryOverTabs[tab.id] = tab.url;
+    await setToLocalStorage({ carryOverTabs });
+    await removeTabFromProjectTabs(tab.url); // Remove from projectTabs if exists
+  } catch (error) {
+    console.error('Error adding carry over tab:', error);
+  }
+}
+
+// Function to update carryOverTab URL when it changes
+// need to remove from carry over list and add to project tabs
+export async function updateCarryOverTab(tabId, changeInfo) {
+  if (changeInfo.url) {
+    try {
+      const carryOverTabs = await getFromLocalStorage('carryOverTabs') || {};
+      if (carryOverTabs[tabId]) {
+        carryOverTabs[tabId] = changeInfo.url;
+        await setToLocalStorage({ carryOverTabs });
+      }
+    } catch (error) {
+      console.error('Error updating carry over tab:', error);
+    }
+  }
+}
+
+// Function to remove a tab from carryOverTabs
+// need to add to project tabs if exists
+export async function removeCarryOverTab(tabId) {
+  try {
+    const carryOverTabs = await getFromLocalStorage('carryOverTabs') || {};
+    if (carryOverTabs[tabId]) {
+      delete carryOverTabs[tabId];
+      await setToLocalStorage({ carryOverTabs });
+    }
+  } catch (error) {
+    console.error('Error removing carry over tab:', error);
+  }
+}

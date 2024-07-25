@@ -10,7 +10,11 @@ import {
   removeFromLocalStorageMultiple, 
   setToLocalStorage,
   fetchTabs,
-  getCurrentWindow
+  getCurrentWindow,
+  getFromLocalStorage,
+  removeCarryOverTab,
+  addCarryOverTab,
+  removeTab
 } from './utils/chromeUtils';
 
 const Container = styled.div`
@@ -63,7 +67,9 @@ const App = () => {
     let window = await getCurrentWindow();
     console.log('windowId', window.id);
     const selectedProjectKey = `selectedProject_${window.id}`;
-    const result = await getFromLocalStorageMultiple(['projects', 'projectTabs', selectedProjectKey, 'eventLogs']);
+    const result = await getFromLocalStorageMultiple([
+      'projects', 'projectTabs', selectedProjectKey, 'eventLogs',
+      'carryOverTabs'    ]);
     console.log(result);
     if (result.projects) setProjects(result.projects);
     if (result.projectTabs) setProjectTabs(result.projectTabs);
@@ -124,37 +130,76 @@ const App = () => {
     const newProject = pendingProjectSelection.current;
     
     if (switchProjectBool) {
-      chrome.storage.local.set({ projectToOpen: newProject }, () => {
-        // Get the current window
-        chrome.windows.getCurrent(function (currentWindow) {
-          removeFromLocalStorageMultiple(
-            ['selectedProject', 'selectedProject_' + currentWindow.id]);
-          // Get the dimensions of the current window
-          let width = currentWindow.width;
-          let height = currentWindow.height;
-          let isMaximized = currentWindow.state === 'maximized';
-          
-          // Create a new window with the same dimensions
-          chrome.windows.create({
-            width: isMaximized ? undefined : currentWindow.width,
-            height: isMaximized ? undefined : currentWindow.height,
-            state: isMaximized ? 'maximized' : 'normal'
-          }, (newWindow) => {
-            setTimeout(() => {
-              // Query all tabs in the old window
-              chrome.tabs.query({ windowId: currentWindow.id }, (tabs) => {
-                let carryOverTabs = localStorage.getItem('carryOverTabs');
-                const tabIdsToRemove = tabs.map(tab => tab.id);
-                chrome.tabs.remove(tabIdsToRemove, () => { });
-              });
-            }, 1000);
+      await setToLocalStorage({ projectToOpen: newProject });
+      const currentWindow = await getCurrentWindow();
+      
+      await removeFromLocalStorageMultiple([
+        'selectedProject', 
+        `selectedProject_${currentWindow.id}`
+      ]);
+  
+      const isMaximized = currentWindow.state === 'maximized';
+      const newWindowOptions = {
+        width: isMaximized ? undefined : currentWindow.width,
+        height: isMaximized ? undefined : currentWindow.height,
+        state: isMaximized ? 'maximized' : 'normal'
+      };
+  
+      const newWindow = await new Promise((resolve) => {
+        chrome.windows.create(newWindowOptions, resolve);
+      });
+  
+      await new Promise(resolve => setTimeout(resolve, 1000));
+  
+      const tabs = await fetchTabs({ windowId: currentWindow.id });
+      const carryOverTabs = await getFromLocalStorage('carryOverTabs') || {};
+      
+      const tabsToMove = [];
+      const tabsToRemove = [];
+      const carryOverUrls = new Map();
+  
+      tabs.forEach(tab => {
+        if (carryOverTabs[tab.id]) {
+          tabsToMove.push(tab.id);
+          carryOverUrls.set(tab.url, tab.id);
+        } else {
+          tabsToRemove.push(tab.id);
+        }
+      });
+  
+      if (tabsToMove.length > 0) {
+        const movedTabs = await new Promise((resolve) => {
+          chrome.tabs.move(tabsToMove, { windowId: newWindow.id, index: -1 }, (result) => {
+            // Ensure result is always an array
+            resolve(Array.isArray(result) ? result : [result]);
           });
         });
-      });
+  
+        // Update carryOverTabs with new tab IDs
+        const updatedCarryOverTabs = {};
+        for (const movedTab of movedTabs) {
+          if (carryOverUrls.has(movedTab.url)) {
+            const oldTabId = carryOverUrls.get(movedTab.url);
+            updatedCarryOverTabs[movedTab.id] = movedTab.url;
+            await removeCarryOverTab(oldTabId);
+          }
+        }
+  
+        // Add new carry-over tabs
+        for (const [tabId, url] of Object.entries(updatedCarryOverTabs)) {
+          await addCarryOverTab({ id: parseInt(tabId), url });
+        }
+      }
+      console.log('tabsToRemove', tabsToRemove);
+      if (tabsToRemove.length > 0) {
+        await Promise.all(tabsToRemove.map(tabId => removeTab(tabId)));
+      }
     }
+  
     setShowConfirmation(false);
     pendingProjectSelection.current = null;
   };
+
 
   const deleteProject = (index) => {
     const projectName = projects[index];
