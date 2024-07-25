@@ -7,7 +7,8 @@ import {
   updateContextMenu
 } from './carryover.js';
 import { getFromLocalStorage,removeFromLocalStorage, fetchTabs, createTab, 
-  setToLocalStorage, removeTab,clearInactiveSelectedProjects
+  setToLocalStorage, removeTab,clearInactiveSelectedProjects,
+  getTab
 } from './chromeUtils.js';
 
 
@@ -20,7 +21,7 @@ chrome.runtime.onInstalled.addListener(() => {
 });
 
 chrome.runtime.onStartup.addListener(() => {
-  logEvent('Browser started up');
+  // logEvent('Browser started up');
 });
 
 chrome.windows.onCreated.addListener(async (window) => {
@@ -29,9 +30,7 @@ chrome.windows.onCreated.addListener(async (window) => {
   let selectedProjectKey = `selectedProject_${windowId}`;
   const tabs = await fetchTabs({ windowId });
   const newTabId = tabs[0].id;
-  logEvent(`Window ${windowId} created with ${tabs.length} tabs`);
   const projectToOpen = await getFromLocalStorage('projectToOpen');
-  logEvent(`Project to open: ${projectToOpen}`);
   setToLocalStorage({ [`selectedProject`]: projectToOpen });
   if (projectToOpen) {
     const projectName = projectToOpen;
@@ -60,32 +59,12 @@ chrome.windows.onCreated.addListener(async (window) => {
   }
 });
 
-chrome.windows.onRemoved.addListener((windowId) => {
-  chrome.storage.local.remove([`selectedProject_${windowId}`], () => {
-    chrome.runtime.sendMessage({ action: 'clearSelectedProject' }, (response) => { });
-  });
-});
-
-chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  if (message.action === 'setNewWindowProject') {
-    chrome.storage.local.set({ projectToOpen: message.project }, () => {
-      sendResponse({ status: 'success' });
-    });
-    return true;
-  } else if (message.action === 'clearSelectedProject') {
-    chrome.storage.local.remove('selectedProject', () => {
-      sendResponse({ status: 'success' });
-    });
-    return true;
-  }
-});
-
 chrome.tabs.onCreated.addListener((tab) => {
   updateProjectTabs('tabs.onCreated');
 });
 
 chrome.tabs.onRemoved.addListener((tabId, removeInfo) => {
-  // removeCarryOverTab(tabId);
+  removeCarryOverTab(tabId);
   updateProjectTabs('tabs.onRemoved');
 });
 
@@ -98,7 +77,7 @@ chrome.tabs.onAttached.addListener((tabId, attachInfo) => {
 });
 
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
-  // updateCarryOverTab(tabId, changeInfo);
+  updateCarryOverTab(tabId, changeInfo);
   updateProjectTabs('tabs.onUpdated');
 });
 
@@ -106,16 +85,26 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
 chrome.contextMenus.onClicked.addListener(handleContextMenuClick);
 
 // Update context menu when a tab is activated
-chrome.tabs.onActivated.addListener((activeInfo) => {
-  chrome.tabs.get(activeInfo.tabId, (tab) => {
-    updateContextMenu(tab);
-  });
+chrome.tabs.onActivated.addListener(async (activeInfo) => {
+  try {
+    const tab = await getTab(activeInfo.tabId);
+    if (tab) {
+      await updateContextMenu(tab);
+    }
+  } catch (error) {
+    logEvent(`Error in onActivated listener: ${error.message}`);
+  }
 });
 
 // Update context menu when a tab is highlighted
-chrome.tabs.onHighlighted.addListener((highlightInfo) => {
-  const tabId = highlightInfo.tabIds[0]; // Assuming single selection
-  chrome.tabs.get(tabId, (tab) => {
-    updateContextMenu(tab);
-  });
+chrome.tabs.onHighlighted.addListener(async (highlightInfo) => {
+  try {
+    const tabId = highlightInfo.tabIds[0]; // Assuming single selection
+    const tab = await getTab(tabId);
+    if (tab) {
+      await updateContextMenu(tab);
+    }
+  } catch (error) {
+    logEvent(`Error in onHighlighted listener: ${error.message}`);
+  }
 });

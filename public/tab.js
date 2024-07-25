@@ -17,7 +17,7 @@ export async function handleWindowTabs(storageData) {
 
   if (projectName) {
     const tabs = await fetchTabs({ windowId: currentWindowId });
-    logEvent(`Found ${tabs.length} tabs in window ${currentWindowId}`);
+    // logEvent(`Found ${tabs.length} tabs in window ${currentWindowId}`);
     const carryOverTabs = storageData.carryOverTabs || {};
     const newTabUrls = tabs
       .map(tab => tab.url)
@@ -42,7 +42,7 @@ export function updateProjectTabsImmediately(windowId, projectName, newTabUrls) 
     const projectTabs = result.projectTabs || {};
     projectTabs[projectName] = newTabUrls;
     chrome.storage.local.set({ projectTabs }, () => {
-      logEvent(`Updated tabs for project ${projectName} in window ${windowId} with tabs ${newTabUrls.join(', ')}`);
+      // logEvent(`Updated tabs for project ${projectName} in window ${windowId} with tabs ${newTabUrls.join(', ')}`);
     });
   });
 }

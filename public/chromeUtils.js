@@ -118,3 +118,15 @@ export async function clearInactiveSelectedProjects() {
     await removeFromLocalStorageMultiple(keysToRemove);
   }
 }
+
+export const getTab = async (tabId) => {
+  return new Promise((resolve, reject) => {
+    chrome.tabs.get(tabId, (tab) => {
+      if (chrome.runtime.lastError) {
+        reject(chrome.runtime.lastError);
+      } else {
+        resolve(tab);
+      }
+    });
+  });
+};

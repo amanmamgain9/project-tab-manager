@@ -95,6 +95,16 @@ export const removeFromLocalStorageMultiple = async (keys) => {
   });
 };
 
+async function removeTabFromProjectTabs(url) {
+  chrome.storage.local.get(['projectTabs'], (result) => {
+    const projectTabs = result.projectTabs || {};
+    for (const projectName in projectTabs) {
+      projectTabs[projectName] = projectTabs[projectName].filter(tabUrl => tabUrl !== url);
+      setToLocalStorage({ projectTabs });
+     }
+    chrome.storage.local.set({ projectTabs });
+  });
+}
 
 export async function addCarryOverTab(tab) {
   try {
@@ -136,3 +146,97 @@ export async function removeCarryOverTab(tabId) {
     console.error('Error removing carry over tab:', error);
   }
 }
+
+export const createNewWindow = async (currentWindow) => {
+  const isMaximized = currentWindow.state === 'maximized';
+  const newWindowOptions = {
+    width: isMaximized ? undefined : currentWindow.width,
+    height: isMaximized ? undefined : currentWindow.height,
+    state: isMaximized ? 'maximized' : 'normal'
+  };
+
+  return new Promise((resolve) => {
+    chrome.windows.create(newWindowOptions, resolve);
+  });
+};
+
+// Categorize tabs into carry-over, non-carry-over, and active
+export const categorizeTabs = (tabs, carryOverTabs) => {
+  const tabsToMove = [];
+  const tabsToRemove = [];
+  const carryOverUrls = new Map();
+  let activeTab = null;
+
+  tabs.forEach(tab => {
+    if (tab.active) {
+      activeTab = tab;
+    } else if (carryOverTabs[tab.id]) {
+      tabsToMove.push(tab.id);
+      carryOverUrls.set(tab.url, tab.id);
+    } else {
+      tabsToRemove.push(tab.id);
+    }
+  });
+
+  return { tabsToMove, tabsToRemove, carryOverUrls, activeTab };
+};
+
+// Move carry-over tabs to the new window
+export const moveCarryOverTabs = async (tabsToMove, newWindowId, carryOverUrls) => {
+  if (tabsToMove.length === 0) return;
+  try {
+    const movedTabs = await new Promise((resolve, reject) => {
+      chrome.tabs.move(tabsToMove, { windowId: newWindowId, index: -1 }, (result) => {
+        if (chrome.runtime.lastError) {
+          reject(new Error(chrome.runtime.lastError.message));
+        } else {
+          resolve(result);
+        }
+      });
+    });
+
+    const updatedCarryOverTabs = {};
+    const processMovedTab = (tab) => {
+      if (carryOverUrls.has(tab.url)) {
+        const oldTabId = carryOverUrls.get(tab.url);
+        updatedCarryOverTabs[tab.id] = tab.url;
+        return removeCarryOverTab(oldTabId);
+      }
+    };
+
+    if (Array.isArray(movedTabs)) {
+      await Promise.all(movedTabs.map(processMovedTab));
+    } else if (movedTabs) {
+      await processMovedTab(movedTabs);
+    }
+
+    await Promise.all(
+      Object.entries(updatedCarryOverTabs).map(([tabId, url]) => 
+        addCarryOverTab({ id: parseInt(tabId), url })
+      )
+    );
+  } catch (error) {
+    console.error('Error moving carry-over tabs:', error);
+    // You might want to add additional error handling here
+  }
+};
+
+// Remove non-carry-over tabs
+export const removeNonCarryOverTabs = async (tabsToRemove) => {
+  console.log('tabsToRemove', tabsToRemove);
+  if (tabsToRemove.length > 0) {
+    await Promise.all(tabsToRemove.map(tabId => removeTab(tabId)));
+  }
+}
+
+export const handleActiveTab = async (activeTab, carryOverTabs, newWindowId) => {
+  if (activeTab) {
+    if (carryOverTabs[activeTab.id]) {
+      const movedTab = await chrome.tabs.move(activeTab.id, { windowId: newWindowId, index: -1 });
+      await addCarryOverTab({ id: movedTab.id, url: movedTab.url });
+      await removeCarryOverTab(activeTab.id);
+    } else {
+      await removeTab(activeTab.id);
+    }
+  }
+};
