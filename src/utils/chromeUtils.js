@@ -182,9 +182,19 @@ export const categorizeTabs = (tabs, carryOverTabs) => {
 };
 
 // Move carry-over tabs to the new window
-export const moveCarryOverTabs = async (tabsToMove, newWindowId, carryOverUrls) => {
+export const moveCarryOverTabs = async (tabsToMove, newWindowId) => {
   if (tabsToMove.length === 0) return;
   try {
+    // First get the tabs we're about to move so we can track them
+    const originalTabs = await Promise.all(
+      tabsToMove.map(tabId => 
+        new Promise((resolve) => chrome.tabs.get(tabId, resolve))
+      )
+    );
+    
+    console.log('Original tabs before move:', originalTabs);
+
+    // Do the move operation
     const movedTabs = await new Promise((resolve, reject) => {
       chrome.tabs.move(tabsToMove, { windowId: newWindowId, index: -1 }, (result) => {
         if (chrome.runtime.lastError) {
@@ -195,29 +205,28 @@ export const moveCarryOverTabs = async (tabsToMove, newWindowId, carryOverUrls) 
       });
     });
 
-    const updatedCarryOverTabs = {};
-    const processMovedTab = (tab) => {
-      if (carryOverUrls.has(tab.url)) {
-        const oldTabId = carryOverUrls.get(tab.url);
-        updatedCarryOverTabs[tab.id] = tab.url;
-        return removeCarryOverTab(oldTabId);
-      }
-    };
-
-    if (Array.isArray(movedTabs)) {
-      await Promise.all(movedTabs.map(processMovedTab));
-    } else if (movedTabs) {
-      await processMovedTab(movedTabs);
-    }
-
-    await Promise.all(
-      Object.entries(updatedCarryOverTabs).map(([tabId, url]) => 
-        addCarryOverTab({ id: parseInt(tabId), url })
+    // Get the actual new tabs to ensure we have accurate new IDs
+    const getNewTabs = Array.isArray(movedTabs) ? movedTabs : [movedTabs];
+    const newTabs = await Promise.all(
+      getNewTabs.map(tab => 
+        new Promise((resolve) => chrome.tabs.get(tab.id, resolve))
       )
     );
+    
+    console.log('New tabs after move:', newTabs);
+
+    // Remove old tabs from carry-over
+    await Promise.all(
+      originalTabs.map(tab => removeCarryOverTab(tab.id))
+    );
+
+    // Add new tabs to carry-over
+    await Promise.all(
+      newTabs.map(tab => addCarryOverTab(tab))
+    );
+    
   } catch (error) {
     console.error('Error moving carry-over tabs:', error);
-    // You might want to add additional error handling here
   }
 };
 
