@@ -1,70 +1,105 @@
-# Getting Started with Create React App
+# Project Tab Manager
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+A Chrome extension that helps you organize and manage your browser tabs by grouping them into projects. Perfect for developers, researchers, or anyone who works on multiple projects simultaneously and needs to keep their browser tabs organized.
 
-## Available Scripts
+## Features
 
-In the project directory, you can run:
+- **Project-Based Tab Management**: Create different projects and associate tabs with specific projects
+- **Smart Tab Switching**: Seamlessly switch between different projects while maintaining tab organization
+- **Carry-Over Tabs**: Keep specific tabs across different projects using the context menu
+- **Persistent Storage**: Your project configurations and tab associations are saved automatically
+- **Clean Interface**: Simple and intuitive UI for managing your projects and tabs
 
-### `npm start`
+## How It Works
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+1. Create different projects for your work (e.g., "Development", "Research", "Personal")
+2. Save your current tabs to a project
+3. Switch between projects - the extension will:
+   - Save your current tab setup
+   - Open the tabs associated with the selected project
+   - Maintain any "carry-over" tabs you've designated
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+## Technical Implementation
 
-### `npm test`
+### Core Technologies
+- React.js for the popup UI
+- Chrome Extension APIs
+- Local Storage for data persistence
+- ES6+ JavaScript
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+### Key Components
 
-### `npm run build`
+- **Popup Interface (`src/App.js`)**: Main UI for project management
+- **Background Service (`public/background.js`)**: Handles tab events and project switching
+- **Chrome Utils (`src/utils/chromeUtils.js`)**: Utility functions for Chrome API interactions
+- **Tab Management (`public/tab.js`)**: Core tab manipulation logic
+- **Carry-Over System (`public/carryover.js`)**: Manages tabs that persist across projects
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+### Storage Structure
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+The extension uses Chrome's local storage to maintain:
+- List of projects
+- Tab associations for each project
+- Carry-over tab configurations
+- Project selection state per window
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+## Installation
 
-### `npm run eject`
+1. Clone this repository
+2. Install dependencies:
+   ```bash
+   npm install
+   ```
+3. Build the extension:
+   ```bash
+   npm run build
+   ```
+4. Load the extension in Chrome:
+   - Open Chrome and navigate to `chrome://extensions/`
+   - Enable "Developer mode"
+   - Click "Load unpacked"
+   - Select the `build` directory
 
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
+## Usage
 
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+1. Click the extension icon in Chrome's toolbar
+2. Create a new project using the '+' button
+3. Switch between projects by clicking on them
+4. Right-click on any tab to mark it as a carry-over tab
+5. Your tab configurations are automatically saved as you work
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
+## Permissions
 
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
+The extension requires the following permissions:
+- `storage`: For saving project and tab data
+- `tabs`: For tab management
+- `activeTab`: For accessing the current tab
+- `webNavigation`: For tracking tab navigation
+- `contextMenus`: For carry-over tab functionality
+- `notifications`: For system notifications
 
-## Learn More
+## Project Structure
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+```
+project-tab-manager/
+├── public/
+│   ├── background.js     # Extension background service
+│   ├── carryover.js      # Carry-over tab functionality
+│   ├── chromeUtils.js    # Chrome API utilities
+│   ├── tab.js           # Tab management logic
+│   └── manifest.json     # Extension configuration
+├── src/
+│   ├── App.js           # Main React component
+│   ├── ProjectList.js    # Project list component
+│   ├── AddProjectModal.js # New project modal
+│   └── utils/
+│       └── chromeUtils.js # Frontend Chrome utilities
+```
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+## Contributing
 
-### Code Splitting
+Feel free to submit issues and enhancement requests!
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
+## License
 
-### Analyzing the Bundle Size
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
-
-### Making a Progressive Web App
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
-
-### Advanced Configuration
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
-
-### Deployment
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
-
-### `npm run build` fails to minify
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+This project is licensed under the MIT License - see the LICENSE file for details.
